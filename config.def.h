@@ -5,8 +5,8 @@
  *
  * font: see http://freedesktop.org/software/fontconfig/fontconfig-user.html
  */
-static char *font = "Liberation Mono:pixelsize=12:antialias=true:autohint=true";
-static int borderpx = 2;
+static char *font = "Anonymous Pro:pixelsize=16:antialias=true:autohint=true";
+static int borderpx = 0;
 
 /*
  * What program is execed by st depends of these precedence rules:
@@ -23,9 +23,6 @@ char *stty_args = "stty raw pass8 nl -echo -iexten -cstopb 38400";
 /* identification sequence returned in DA and DECID */
 char *vtiden = "\033[?6c";
 
-/* Kerning / character bounding-box multipliers */
-static float cwscale = 1.0;
-static float chscale = 1.0;
 
 /*
  * word delimiter string
@@ -42,19 +39,27 @@ static unsigned int tripleclicktimeout = 600;
 int allowaltscreen = 1;
 
 /* frames per second st should at maximum draw to the screen */
-static unsigned int xfps = 120;
-static unsigned int actionfps = 30;
+static unsigned int xfps = 100 ;
+static unsigned int xevents_at_xfps = 10;
+#define DRAW_TIMEOUT  1E9 / 100 
+static unsigned int  actionfps = 1000;
 
 /*
  * blinking timeout (set to 0 to disable blinking) for the terminal blinking
  * attribute.
  */
-static unsigned int blinktimeout = 800;
+static unsigned int blinktimeout = 0;
 
 /*
  * thickness of underline and bar cursors
  */
-static unsigned int cursorthickness = 2;
+static float cursorthickness_factor1 =  6e-2;
+static float cursorthickness_factor2 = 12e-2;
+static float cursorthickness_factor3 = 12e-2;
+static float cursorthickness_factor4 = 25e-2;
+
+static int add_x_space = 0;
+static int add_y_space = 1;
 
 /*
  * bell volume. It must be a value between -100 and 100. Use 0 for disabling
@@ -80,35 +85,40 @@ char *termname = "st-256color";
  *
  *	stty tabs
  */
-unsigned int tabspaces = 8;
+unsigned int tabspaces = 4;
 
 /* Terminal colors (16 first used in escape sequence) */
 static const char *colorname[] = {
 	/* 8 normal colors */
 	"black",
 	"red3",
-	"green3",
-	"yellow3",
-	"blue2",
-	"magenta3",
+	"#005f00",
+	"#ff5f00",
+	"#00005f",
+	"#5f005f",
 	"cyan3",
 	"gray90",
 
 	/* 8 bright colors */
-	"gray50",
-	"red",
-	"green",
-	"yellow",
-	"#5c5cff",
-	"magenta",
-	"cyan",
-	"white",
+	"#111111",
+	"#ff0000",
+	"#00ff00",
+	"#ffff00",
+	"#0000ff",
+	"#ff00ff",
+	"#00ffff",
+	"#ffffff",
 
 	[255] = 0,
 
 	/* more colors can be added after 255 to use with DefaultXX */
-	"#cccccc",
-	"#555555",
+
+        "#00ff44" ,
+        "#ff00cc" ,
+        "#ff00ff" ,
+        "#00ff00" ,
+
+
 };
 
 
@@ -118,8 +128,10 @@ static const char *colorname[] = {
  */
 unsigned int defaultfg = 7;
 unsigned int defaultbg = 0;
-static unsigned int defaultcs = 256;
+static unsigned int defaultcs =  256;
+static unsigned int defaultcs2 =  258;
 static unsigned int defaultrcs = 257;
+static unsigned int defaultrcs2 = 259;
 
 /*
  * Default shape of cursor
@@ -134,8 +146,8 @@ static unsigned int cursorshape = 2;
  * Default columns and rows numbers
  */
 
-static unsigned int cols = 80;
-static unsigned int rows = 24;
+static unsigned int cols = 240;
+static unsigned int rows = 96;
 
 /*
  * Default colour and shape of the mouse cursor
@@ -156,29 +168,13 @@ static unsigned int defaultattr = 11;
  */
 static MouseShortcut mshortcuts[] = {
 	/* button               mask            string */
-	{ Button4,              XK_ANY_MOD,     "\031" },
-	{ Button5,              XK_ANY_MOD,     "\005" },
+	{ Button1,              XK_ANY_MOD,     "\r" },
+	{ Button2,              XK_ANY_MOD,     "\033" },
+	{ Button3,              XK_ANY_MOD,     "," },
+	{ Button4,              XK_ANY_MOD,     "i" },
+	{ Button5,              XK_ANY_MOD,     "k" },
 };
 
-/* Internal keyboard shortcuts. */
-#define MODKEY Mod1Mask
-#define TERMMOD (ControlMask|ShiftMask)
-
-static Shortcut shortcuts[] = {
-	/* mask                 keysym          function        argument */
-	{ XK_ANY_MOD,           XK_Break,       sendbreak,      {.i =  0} },
-	{ ControlMask,          XK_Print,       toggleprinter,  {.i =  0} },
-	{ ShiftMask,            XK_Print,       printscreen,    {.i =  0} },
-	{ XK_ANY_MOD,           XK_Print,       printsel,       {.i =  0} },
-	{ TERMMOD,              XK_Prior,       zoom,           {.f = +1} },
-	{ TERMMOD,              XK_Next,        zoom,           {.f = -1} },
-	{ TERMMOD,              XK_Home,        zoomreset,      {.f =  0} },
-	{ TERMMOD,              XK_C,           clipcopy,       {.i =  0} },
-	{ TERMMOD,              XK_V,           clippaste,      {.i =  0} },
-	{ TERMMOD,              XK_Y,           selpaste,       {.i =  0} },
-	{ TERMMOD,              XK_Num_Lock,    numlock,        {.i =  0} },
-	{ TERMMOD,              XK_I,           iso14755,       {.i =  0} },
-};
 
 /*
  * Special keys (change & recompile st.info accordingly)
@@ -222,7 +218,7 @@ static uint ignoremod = Mod2Mask|XK_SWITCH_MOD;
  * Note that if you want to use ShiftMask with selmasks, set this to an other
  * modifier, set to 0 to not use it.
  */
-static uint forceselmod = ShiftMask;
+static uint forceselmod = 0;
 
 /*
  * This is the huge key array which defines all compatibility to the Linux
@@ -230,61 +226,6 @@ static uint forceselmod = ShiftMask;
  */
 static Key key[] = {
 	/* keysym           mask            string      appkey appcursor */
-	{ XK_KP_Home,       ShiftMask,      "\033[2J",       0,   -1},
-	{ XK_KP_Home,       ShiftMask,      "\033[1;2H",     0,   +1},
-	{ XK_KP_Home,       XK_ANY_MOD,     "\033[H",        0,   -1},
-	{ XK_KP_Home,       XK_ANY_MOD,     "\033[1~",       0,   +1},
-	{ XK_KP_Up,         XK_ANY_MOD,     "\033Ox",       +1,    0},
-	{ XK_KP_Up,         XK_ANY_MOD,     "\033[A",        0,   -1},
-	{ XK_KP_Up,         XK_ANY_MOD,     "\033OA",        0,   +1},
-	{ XK_KP_Down,       XK_ANY_MOD,     "\033Or",       +1,    0},
-	{ XK_KP_Down,       XK_ANY_MOD,     "\033[B",        0,   -1},
-	{ XK_KP_Down,       XK_ANY_MOD,     "\033OB",        0,   +1},
-	{ XK_KP_Left,       XK_ANY_MOD,     "\033Ot",       +1,    0},
-	{ XK_KP_Left,       XK_ANY_MOD,     "\033[D",        0,   -1},
-	{ XK_KP_Left,       XK_ANY_MOD,     "\033OD",        0,   +1},
-	{ XK_KP_Right,      XK_ANY_MOD,     "\033Ov",       +1,    0},
-	{ XK_KP_Right,      XK_ANY_MOD,     "\033[C",        0,   -1},
-	{ XK_KP_Right,      XK_ANY_MOD,     "\033OC",        0,   +1},
-	{ XK_KP_Prior,      ShiftMask,      "\033[5;2~",     0,    0},
-	{ XK_KP_Prior,      XK_ANY_MOD,     "\033[5~",       0,    0},
-	{ XK_KP_Begin,      XK_ANY_MOD,     "\033[E",        0,    0},
-	{ XK_KP_End,        ControlMask,    "\033[J",       -1,    0},
-	{ XK_KP_End,        ControlMask,    "\033[1;5F",    +1,    0},
-	{ XK_KP_End,        ShiftMask,      "\033[K",       -1,    0},
-	{ XK_KP_End,        ShiftMask,      "\033[1;2F",    +1,    0},
-	{ XK_KP_End,        XK_ANY_MOD,     "\033[4~",       0,    0},
-	{ XK_KP_Next,       ShiftMask,      "\033[6;2~",     0,    0},
-	{ XK_KP_Next,       XK_ANY_MOD,     "\033[6~",       0,    0},
-	{ XK_KP_Insert,     ShiftMask,      "\033[2;2~",    +1,    0},
-	{ XK_KP_Insert,     ShiftMask,      "\033[4l",      -1,    0},
-	{ XK_KP_Insert,     ControlMask,    "\033[L",       -1,    0},
-	{ XK_KP_Insert,     ControlMask,    "\033[2;5~",    +1,    0},
-	{ XK_KP_Insert,     XK_ANY_MOD,     "\033[4h",      -1,    0},
-	{ XK_KP_Insert,     XK_ANY_MOD,     "\033[2~",      +1,    0},
-	{ XK_KP_Delete,     ControlMask,    "\033[M",       -1,    0},
-	{ XK_KP_Delete,     ControlMask,    "\033[3;5~",    +1,    0},
-	{ XK_KP_Delete,     ShiftMask,      "\033[2K",      -1,    0},
-	{ XK_KP_Delete,     ShiftMask,      "\033[3;2~",    +1,    0},
-	{ XK_KP_Delete,     XK_ANY_MOD,     "\033[P",       -1,    0},
-	{ XK_KP_Delete,     XK_ANY_MOD,     "\033[3~",      +1,    0},
-	{ XK_KP_Multiply,   XK_ANY_MOD,     "\033Oj",       +2,    0},
-	{ XK_KP_Add,        XK_ANY_MOD,     "\033Ok",       +2,    0},
-	{ XK_KP_Enter,      XK_ANY_MOD,     "\033OM",       +2,    0},
-	{ XK_KP_Enter,      XK_ANY_MOD,     "\r",           -1,    0},
-	{ XK_KP_Subtract,   XK_ANY_MOD,     "\033Om",       +2,    0},
-	{ XK_KP_Decimal,    XK_ANY_MOD,     "\033On",       +2,    0},
-	{ XK_KP_Divide,     XK_ANY_MOD,     "\033Oo",       +2,    0},
-	{ XK_KP_0,          XK_ANY_MOD,     "\033Op",       +2,    0},
-	{ XK_KP_1,          XK_ANY_MOD,     "\033Oq",       +2,    0},
-	{ XK_KP_2,          XK_ANY_MOD,     "\033Or",       +2,    0},
-	{ XK_KP_3,          XK_ANY_MOD,     "\033Os",       +2,    0},
-	{ XK_KP_4,          XK_ANY_MOD,     "\033Ot",       +2,    0},
-	{ XK_KP_5,          XK_ANY_MOD,     "\033Ou",       +2,    0},
-	{ XK_KP_6,          XK_ANY_MOD,     "\033Ov",       +2,    0},
-	{ XK_KP_7,          XK_ANY_MOD,     "\033Ow",       +2,    0},
-	{ XK_KP_8,          XK_ANY_MOD,     "\033Ox",       +2,    0},
-	{ XK_KP_9,          XK_ANY_MOD,     "\033Oy",       +2,    0},
 	{ XK_Up,            ShiftMask,      "\033[1;2A",     0,    0},
 	{ XK_Up,            Mod1Mask,       "\033[1;3A",     0,    0},
 	{ XK_Up,         ShiftMask|Mod1Mask,"\033[1;4A",     0,    0},
@@ -336,6 +277,7 @@ static Key key[] = {
 	{ XK_Delete,        ShiftMask,      "\033[3;2~",    +1,    0},
 	{ XK_Delete,        XK_ANY_MOD,     "\033[P",       -1,    0},
 	{ XK_Delete,        XK_ANY_MOD,     "\033[3~",      +1,    0},
+	{ XK_Delete,        XK_ANY_MOD,     "\033[3",        0,    0},
 	{ XK_BackSpace,     XK_NO_MOD,      "\177",          0,    0},
 	{ XK_BackSpace,     Mod1Mask,       "\033\177",      0,    0},
 	{ XK_Home,          ShiftMask,      "\033[2J",       0,   -1},
