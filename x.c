@@ -1421,21 +1421,11 @@ xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og)
 	if (IS_SET(MODE_REVERSE)) {
 		g.mode |= ATTR_REVERSE;
 		g.bg = defaultfg;
-		if (selected(cx, cy)) {
-			drawcol = dc.col[defaultcs];
-			g.fg = defaultrcs;
-		} else {
-			drawcol = dc.col[defaultrcs];
-			g.fg = defaultcs;
-		}
+		drawcol = dc.col[defaultrcs];
+		g.fg = defaultcs;
 	} else {
-		if (selected(cx, cy)) {
-			g.fg = defaultfg;
-			g.bg = defaultrcs;
-		} else {
-			g.fg = defaultbg;
-			g.bg = defaultcs;
-		}
+		g.fg = defaultbg;
+		g.bg = defaultcs;
 		drawcol = dc.col[g.bg];
 	}
 
