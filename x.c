@@ -1430,7 +1430,6 @@ xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og)
 	}
 
 	/* draw the new one */
-	if (IS_SET(MODE_FOCUSED)) {
 		switch (win.cursor) {
 		case 7: /* st extension: snowman (U+2603) */
 			g.u = 0x2603;
@@ -1455,24 +1454,6 @@ xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og)
 					cursorthickness, win.ch);
 			break;
 		}
-	} else {
-		XftDrawRect(xw.draw, &drawcol,
-				borderpx + cx * win.cw,
-				borderpx + cy * win.ch,
-				win.cw - 1, 1);
-		XftDrawRect(xw.draw, &drawcol,
-				borderpx + cx * win.cw,
-				borderpx + cy * win.ch,
-				1, win.ch - 1);
-		XftDrawRect(xw.draw, &drawcol,
-				borderpx + (cx + 1) * win.cw - 1,
-				borderpx + cy * win.ch,
-				1, win.ch - 1);
-		XftDrawRect(xw.draw, &drawcol,
-				borderpx + cx * win.cw,
-				borderpx + (cy + 1) * win.ch - 1,
-				win.cw, 1);
-	}
 }
 
 void
