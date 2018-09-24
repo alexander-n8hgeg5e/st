@@ -1658,8 +1658,6 @@ kpress(XEvent *ev)
 	Status status;
 	Shortcut *bp;
 
-	if (IS_SET(MODE_KBDLOCK))
-		return;
 
 	len = XmbLookupString(xw.xic, e, buf, sizeof buf, &ksym, &status);
 	/* 1. shortcuts */
