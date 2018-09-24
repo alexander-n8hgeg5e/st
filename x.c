@@ -1431,8 +1431,6 @@ xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og)
 
 	/* draw the new one */
 		switch (win.cursor) {
-		case 7: /* st extension: snowman (U+2603) */
-			g.u = 0x2603;
 		case 0: /* Blinking Block */
 		case 1: /* Blinking Block (Default) */
 		case 2: /* Steady Block */
@@ -1440,12 +1438,6 @@ xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og)
 			break;
 		case 3: /* Blinking Underline */
 		case 4: /* Steady Underline */
-			XftDrawRect(xw.draw, &drawcol,
-					borderpx + cx * win.cw,
-					borderpx + (cy + 1) * win.ch - \
-						cursorthickness,
-					win.cw, cursorthickness);
-			break;
 		case 5: /* Blinking bar */
 		case 6: /* Steady bar */
 			XftDrawRect(xw.draw, &drawcol,
