@@ -6,8 +6,8 @@ inherit eutils git-r3 multilib savedconfig toolchain-funcs
 
 DESCRIPTION="simple terminal implementation for X"
 HOMEPAGE="https://st.suckless.org/"
-EGIT_REPO_URI="${CODEDIR}""/st https://github.com/alexander-n8hgeg5e/st.git"
-EGIT_BRANCH="master"
+EGIT_REPO_URI="${CODEDIR}/${PN} ${MYGITHUB_URIBASE}${PN}.git"
+KEYWORDS="~amd64"
 
 LICENSE="MIT-with-advertising"
 SLOT="0"
@@ -52,6 +52,8 @@ src_install() {
 	emake DESTDIR="${D}" PREFIX="${EPREFIX}"/usr install
 
 	dodoc TODO
+	mkdir -p ${ED}usr/share/terminfo/s
+	tic -sx -o ${ED}usr/share/terminfo/s st.info
 
 	make_desktop_entry ${PN} simpleterm utilities-terminal 'System;TerminalEmulator;' ''
 
