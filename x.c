@@ -1725,7 +1725,7 @@ kpress(XEvent *ev)
 		zoom_m();
 		return;
 	}
-    if (ksym == XK_0 && match( (ControlMask|ShiftMask ) , e->state)) {
+    if (ksym == XK_parenright && match( (ControlMask|ShiftMask ) , e->state)) {
 		zoom_reset();
 		return;
 	}
