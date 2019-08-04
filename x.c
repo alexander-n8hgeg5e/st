@@ -81,7 +81,11 @@ typedef struct {
 	int ch; /* char height */
 	int cw; /* char width  */
 	int mode; /* window state/mode flags */
-	int cursor; /* cursor style */
+	int cur1; /* cursor thickness 1 */
+	int cur2; /* cursor thickness 2 */
+	int cur3; /* cursor thickness 3 */
+	int cur4; /* cursor thickness 4 */
+	int cursor; /* cursor style   */
 } TermWindow;
 
 typedef struct {
@@ -981,8 +985,12 @@ xloadfonts(char *fontstr, double fontsize)
 	}
 
 	/* Setting character width and height. */
-	win.cw = ceilf(dc.font.width * cwscale);
-	win.ch = ceilf(dc.font.height * chscale);
+	win.cw = ceilf(dc.font.width + (2*add_x_space));
+	win.ch = ceilf(dc.font.height + (2*add_y_space));
+	win.cur1 = ceil(cursorthickness_factor1 * (float)win.cw );
+	win.cur2 = ceil(cursorthickness_factor2 * (float)win.ch );
+	win.cur3 = ceil(cursorthickness_factor3 * (float)win.ch );
+	win.cur4 = ceil(cursorthickness_factor4 * (float)win.ch );
 
 	FcPatternDel(pattern, FC_SLANT);
 	FcPatternAddInteger(pattern, FC_SLANT, FC_SLANT_ITALIC);
@@ -1147,7 +1155,6 @@ xinit(int cols, int rows)
 	if (xsel.xtarget == None)
 		xsel.xtarget = XA_STRING;
 }
-
 int
 xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, int len, int x, int y)
 {
@@ -1155,7 +1162,7 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, int len, int x
 	ushort mode, prevmode = USHRT_MAX;
 	Font *font = &dc.font;
 	int frcflags = FRC_NORMAL;
-	float runewidth = win.cw;
+	float runewidth = win.cw + (2 * add_x_space);
 	Rune rune;
 	FT_UInt glyphidx;
 	FcResult fcres;
@@ -1164,7 +1171,7 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, int len, int x
 	FcCharSet *fccharset;
 	int i, f, numspecs = 0;
 
-	for (i = 0, xp = winx, yp = winy + font->ascent; i < len; ++i) {
+	for (i = 0, xp = winx + add_x_space , yp = winy + font->ascent; i < len; ++i) {
 		/* Fetch rune and mode for current glyph. */
 		rune = glyphs[i].u;
 		mode = glyphs[i].mode;
@@ -1189,7 +1196,7 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, int len, int x
 				font = &dc.bfont;
 				frcflags = FRC_BOLD;
 			}
-			yp = winy + font->ascent;
+			yp = winy + font->ascent ;
 		}
 
 		/* Lookup character index with default font. */
@@ -1231,6 +1238,7 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, int len, int x
 			 *
 			 * Xft and fontconfig are design failures.
 			 */
+            fprintf(stderr,"damned, have to make dozens of fontconfig calls...");
 			fcpattern = FcPatternDuplicate(font->pattern);
 			fccharset = FcCharSetCreate();
 
@@ -1369,8 +1377,8 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, int len, int x, i
 		bg = temp;
 	}
 
-	if (base.mode & ATTR_BLINK && win.mode & MODE_BLINK)
-		fg = bg;
+	//if (base.mode & ATTR_BLINK && win.mode & MODE_BLINK)
+	//	fg = bg;
 
 	if (base.mode & ATTR_INVISIBLE)
 		fg = bg;
@@ -1390,8 +1398,10 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, int len, int x, i
 	if (winy + win.ch >= borderpx + win.th)
 		xclear(winx, winy + win.ch, winx + width, win.h);
 
-	/* Clean up the region we want to draw to. */
-	XftDrawRect(xw.draw, bg, winx, winy, width, win.ch);
+	/* Clean up the region we want to draw to.
+       Overlap cleaning because space is used
+     * by cursor */
+	XftDrawRect(xw.draw, bg, winx - add_x_space , winy - add_y_space , width + (2*add_x_space), win.ch + 2*(add_y_space));
 
 	/* Set the clip region because Xft is sometimes dirty. */
 	r.x = 0;
@@ -1432,14 +1442,14 @@ void
 xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og)
 {
 	Color drawcol;
+	Color drawcol2;
 
 	/* remove the old cursor */
 	if (selected(ox, oy))
 		og.mode ^= ATTR_REVERSE;
 	xdrawglyph(og, ox, oy);
 
-	if (IS_SET(MODE_HIDE))
-		return;
+
 
 	/*
 	 * Select the right color for the right mode.
@@ -1456,24 +1466,53 @@ xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og)
 		g.bg = defaultcs;
 		drawcol = dc.col[g.bg];
 	}
+    drawcol2=dc.col[defaultcs2];
+
+
+    /*  visible cursor   */
+	if (! IS_SET(MODE_HIDE)){
+       int wx = (win.cw * cx);
+       int w  = (win.w/4);
+       w=w-(w%win.cw);
+       int sx1 = wx - w ;
+       w=w+win.cw+w;
+       XftDrawRect(xw.draw, &drawcol, sx1 - add_x_space , borderpx - add_y_space +  cy * win.ch,w  , win.cur3);
+       XftDrawRect(xw.draw, &drawcol, sx1 - add_x_space , borderpx + add_y_space - win.cur3 + (cy + 1) * ( win.ch ) ,w , win.cur3);
 
 	/* draw the new one */
+
 		switch (win.cursor) {
-		case 0: /* Blinking Block */
-		case 1: /* Blinking Block (Default) */
+//        case 7: /* st extension: snowman (U+2603) */
+//                g.u = 0x2603;
+//		case 0: /* Blinking Block */
+//		case 1: /* Blinking Block (Default) */
 		case 2: /* Steady Block */
 			xdrawglyph(g, cx, cy);
 			break;
-		case 3: /* Blinking Underline */
-		case 4: /* Steady Underline */
-		case 5: /* Blinking bar */
-		case 6: /* Steady bar */
-			XftDrawRect(xw.draw, &drawcol,
-					borderpx + cx * win.cw,
-					borderpx + cy * win.ch,
-					cursorthickness, win.ch);
-			break;
-		}
+//		case 3: /* Blinking Underline */
+//		case 4: /* Steady Underline */
+//            XftDrawRect(xw.draw, &drawcol,
+//                            borderpx + cx * win.cw,
+//                            borderpx + (cy + 1) * win.ch - \
+//                                    win.cur1,
+//                            win.cw, win.cur1);
+//            break;
+//		case 5: /* Blinking bar */
+//		case 6: /* Steady bar */
+//			XftDrawRect(xw.draw, &drawcol,
+//					borderpx + cx * win.cw,
+//					borderpx + cy * win.ch,
+//					win.cur1, win.ch);
+//			break;
+//
+        default:
+                XftDrawRect(xw.draw, &drawcol2, borderpx - add_x_space + cx * win.cw, borderpx + cy * win.ch, win.cur1, win.ch);
+
+                XftDrawRect(xw.draw, &drawcol2, borderpx - add_x_space + cx * win.cw, borderpx + add_y_space - win.cur4 + ( cy +  1 ) * win.ch , win.cw, win.cur4);
+
+                XftDrawRect(xw.draw, &drawcol2, borderpx - add_x_space + cx * win.cw, borderpx - add_y_space + cy  * win.ch , win.cw, win.cur2);
+
+		}}
 }
 
 void
@@ -1743,7 +1782,7 @@ run(void)
 	fd_set rfd;
 	int xfd = XConnectionNumber(xw.dpy), xev, blinkset = 0, dodraw = 0;
 	int ttyfd;
-	struct timespec drawtimeout, *tv = NULL, now, last, lastblink;
+	struct timespec drawtimeout, *tv = NULL, now, last ;
 	long deltatime;
 
 	/* Waiting for window mapping */
@@ -1766,9 +1805,8 @@ run(void)
 	cresize(w, h);
 
 	clock_gettime(CLOCK_MONOTONIC, &last);
-	lastblink = last;
 
-	for (xev = actionfps;;) {
+	for (xev = xevents_at_xfps;;) {
 		FD_ZERO(&rfd);
 		FD_SET(ttyfd, &rfd);
 		FD_SET(xfd, &rfd);
@@ -1780,30 +1818,20 @@ run(void)
 		}
 		if (FD_ISSET(ttyfd, &rfd)) {
 			ttyread();
-			if (blinktimeout) {
-				blinkset = tattrset(ATTR_BLINK);
-				if (!blinkset)
-					MODBIT(win.mode, 0, MODE_BLINK);
-			}
 		}
 
 		if (FD_ISSET(xfd, &rfd))
-			xev = actionfps;
+			xev = xevents_at_xfps;
 
 		clock_gettime(CLOCK_MONOTONIC, &now);
 		drawtimeout.tv_sec = 0;
-		drawtimeout.tv_nsec =  (1000 * 1E6)/ xfps;
+		drawtimeout.tv_nsec =  DRAW_TIMEOUT ;
 		tv = &drawtimeout;
 
 		dodraw = 0;
-		if (blinktimeout && TIMEDIFF(now, lastblink) > blinktimeout) {
-			tsetdirtattr(ATTR_BLINK);
-			win.mode ^= MODE_BLINK;
-			lastblink = now;
-			dodraw = 1;
-		}
-		deltatime = TIMEDIFF(now, last);
-		if (deltatime > 1000 / (xev ? xfps : actionfps)) {
+		deltatime = TIMEDIFF(now, last); // deltatime in [milliseconds]
+		if (deltatime > 1000 / (xev ? xfps : actionfps )) {
+            //fprintf(stderr, " %d ", xev);
 			dodraw = 1;
 			last = now;
 		}
