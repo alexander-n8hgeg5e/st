@@ -1617,9 +1617,10 @@ csihandle(void)
 	switch (csiescseq.mode[0]) {
 	default:
 	unknown:
-		fprintf(stderr, "erresc: unknown csi ");
+		fprintf(stderr, "terminal got unknown code, ... : ");
 		csidump();
 		/* die(""); */
+		fprintf(stderr, "terminal don't care about wrong codes, but maybe fix computer bro\n");
 		break;
 	case '@': /* ICH -- Insert <n> blank char */
 		DEFAULT(csiescseq.arg[0], 1);
