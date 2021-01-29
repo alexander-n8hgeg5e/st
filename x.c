@@ -287,6 +287,34 @@ zoom(const Arg *arg)
 	zoomabs(&larg);
 }
 
+void zoom_p()
+{
+	int aa = usedfontsize + 1;
+	xunloadfonts();
+	xloadfonts(usedfont, aa);
+	cresize(0, 0);
+	redraw();
+	xhints();
+}
+void zoom_reset()
+{
+	int aa = defaultfontsize;
+	xunloadfonts();
+	xloadfonts(usedfont, aa);
+	cresize(0, 0);
+	redraw();
+	xhints();
+}
+void zoom_m()
+{
+	int aa = usedfontsize -1;
+	xunloadfonts();
+	xloadfonts(usedfont, aa);
+	cresize(0, 0);
+	redraw();
+	xhints();
+}
+
 void
 zoomabs(const Arg *arg)
 {
@@ -1649,9 +1677,20 @@ kpress(XEvent *ev)
 	Rune c;
 	Status status;
 	Shortcut *bp;
+    len = XmbLookupString(xw.xic, e, buf, sizeof buf, &ksym, &status);
+    if (ksym == XK_Prior && match( (ControlMask|ShiftMask ) , e->state)) {
+		zoom_p();
+		return;
+	}
+    if (ksym == XK_Next && match( (ControlMask|ShiftMask ) , e->state)) {
+		zoom_m();
+		return;
+	}
+    if (ksym == XK_0 && match( (ControlMask|ShiftMask ) , e->state)) {
+		zoom_reset();
+		return;
+	}
 
-
-	len = XmbLookupString(xw.xic, e, buf, sizeof buf, &ksym, &status);
 
 	/* 2. custom keys from config.h */
 	if ((customkey = kmap(ksym, e->state))) {
