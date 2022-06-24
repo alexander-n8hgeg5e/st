@@ -1,11 +1,1 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE pkgmetadata SYSTEM "http://www.gentoo.org/dtd/metadata.dtd">
-<pkgmetadata>
-<maintainer type="person">
-<email>xmw@gentoo.org</email>
-<name>Michael Weber</name>
-</maintainer>
-<maintainer type="person">
-<email>jer@gentoo.org</email>
-</maintainer>
-</pkgmetadata>
+/var/src/portage/x11-terms/st/metadata.xml
